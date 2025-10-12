@@ -1,0 +1,30 @@
+{
+  "project_info": {
+    "project_number": "1035517033827",
+    "firebase_url": "https://thinksync-2dc60-default-rtdb.firebaseio.com",
+    "project_id": "thinksync-2dc60",
+    "storage_bucket": "thinksync-2dc60.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1035517033827:android:94cec3b94760c2b7e2a756",
+        "android_client_info": {
+          "package_name": "com.example.chatapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCY3ezpvn31u9dfalR8SOdJUWQkYs2KyF8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
