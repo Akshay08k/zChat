@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:intl/intl.dart';
 import 'package:uuid/uuid.dart';
 import '../services/chatService.dart';
 import '../services/mediaService.dart';
@@ -31,6 +32,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final TextEditingController _textController = TextEditingController();
   final ChatService _chatService = ChatService();
   final MediaService _mediaService = MediaService();
+  final DatabaseReference _db = FirebaseDatabase.instance.ref();
   late DatabaseReference _messagesRef;
   late StreamSubscription<DatabaseEvent> _msgSub;
   List<MessageModel> _messages = [];
@@ -41,7 +43,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     super.initState();
     _messagesRef = _chatService.messagesRef(widget.chatId);
 
-    // Listen to messages
     _msgSub = _messagesRef.onValue.listen((event) async {
       final map = event.snapshot.value as Map<dynamic, dynamic>? ?? {};
       final list = <MessageModel>[];
@@ -52,8 +53,6 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
       });
       list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
       setState(() => _messages = list);
-
-      // Mark messages read
       await _markMessagesRead();
     });
   }
@@ -61,23 +60,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   @override
   void dispose() {
     _msgSub.cancel();
+    _textController.dispose();
     super.dispose();
   }
 
-  // Mark messages as read for current user
   Future<void> _markMessagesRead() async {
     for (var msg in _messages) {
       if (msg.senderId != uid && (msg.isRead?[uid] ?? false) == false) {
-        await _chatService.messagesRef(widget.chatId)
-            .child(msg.id)
-            .child('isRead')
-            .child(uid)
-            .set(true);
+        await _chatService.messagesRef(widget.chatId).child(msg.id).child('isRead').child(uid).set(true);
       }
     }
   }
 
-  // Send text message
   void _sendText() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
@@ -125,34 +119,39 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back, color: Colors.grey.shade900),
+          icon: const Icon(Icons.arrow_back),
           onPressed: () => Navigator.pop(context),
         ),
         title: Row(
           children: [
             CircleAvatar(
               radius: 18,
-              backgroundColor: Colors.teal.shade600,
-              backgroundImage: widget.peerPhoto != null && widget.peerPhoto!.isNotEmpty
-                  ? NetworkImage(widget.peerPhoto!)
-                  : null,
+              backgroundColor: colorScheme.primary,
+              backgroundImage: widget.peerPhoto != null && widget.peerPhoto!.isNotEmpty ? NetworkImage(widget.peerPhoto!) : null,
               child: widget.peerPhoto == null || widget.peerPhoto!.isEmpty
-                  ? Icon(Icons.person, color: Colors.white, size: 18)
+                  ? Icon(Icons.person, color: colorScheme.onPrimary, size: 18)
                   : null,
             ),
-            SizedBox(width: 12),
-            Text(
-              widget.peerName,
-              style: TextStyle(
-                fontSize: 17,
-                fontWeight: FontWeight.w600,
-                color: Colors.grey.shade900,
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    widget.peerName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                  _buildPresenceStatus(theme),
+                ],
               ),
             ),
           ],
@@ -163,88 +162,108 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
           Expanded(
             child: _messages.isEmpty
                 ? Center(
-              child: Text(
-                'No messages yet',
-                style: TextStyle(
-                  color: Colors.grey.shade500,
-                  fontSize: 15,
-                ),
-              ),
-            )
+                    child: Text(
+                      'No messages yet',
+                      style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                    ),
+                  )
                 : ListView.builder(
-              reverse: true,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              itemCount: _messages.length,
-              itemBuilder: (context, index) {
-                final msg = _messages[_messages.length - 1 - index];
-                return MessageBubble(
-                  message: msg,
-                  isMe: msg.senderId == uid,
-                  peerUid: widget.peerId,
-                  peerPhoto: widget.peerPhoto,
-                );
-              },
-            ),
+                    reverse: true,
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                    itemCount: _messages.length,
+                    itemBuilder: (context, index) {
+                      final msg = _messages[_messages.length - 1 - index];
+                      return MessageBubble(
+                        message: msg,
+                        isMe: msg.senderId == uid,
+                        peerUid: widget.peerId,
+                        peerPhoto: widget.peerPhoto,
+                      );
+                    },
+                  ),
           ),
-          _buildInputBar(),
+          _buildInputBar(colorScheme),
         ],
       ),
     );
   }
 
-  Widget _buildInputBar() {
+  Widget _buildPresenceStatus(ThemeData theme) {
+    if (widget.peerId.isEmpty) {
+      return Text(
+        'Group chat',
+        style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+      );
+    }
+
+    return StreamBuilder<DatabaseEvent>(
+      stream: _db.child('presence/${widget.peerId}').onValue,
+      builder: (context, snapshot) {
+        final raw = snapshot.data?.snapshot.value as Map<dynamic, dynamic>?;
+        final isOnline = raw?['isOnline'] == true;
+        final statusText = isOnline ? 'online' : _lastSeenLabel(raw?['lastSeen'] as int?);
+
+        return Text(
+          statusText,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: isOnline ? Colors.green : theme.colorScheme.onSurfaceVariant,
+            fontWeight: isOnline ? FontWeight.w600 : FontWeight.w400,
+          ),
+        );
+      },
+    );
+  }
+
+  String _lastSeenLabel(int? timestamp) {
+    if (timestamp == null) return 'offline';
+    final dt = DateTime.fromMillisecondsSinceEpoch(timestamp);
+    final now = DateTime.now();
+    final isToday = dt.year == now.year && dt.month == now.month && dt.day == now.day;
+
+    if (isToday) {
+      return 'last seen ${DateFormat.Hm().format(dt)}';
+    }
+    return 'last seen ${DateFormat('d MMM, HH:mm').format(dt)}';
+  }
+
+  Widget _buildInputBar(ColorScheme colorScheme) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.fromLTRB(10, 8, 10, 12),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: colorScheme.surface,
         border: Border(
-          top: BorderSide(color: Colors.grey.shade200, width: 1),
+          top: BorderSide(color: colorScheme.outlineVariant.withOpacity(0.5), width: 1),
         ),
       ),
       child: Row(
         children: [
           IconButton(
-            icon: Icon(Icons.image_outlined, color: Colors.grey.shade600),
+            icon: Icon(Icons.image_outlined, color: colorScheme.primary),
             onPressed: _sendImage,
-            iconSize: 26,
+            iconSize: 24,
             tooltip: 'Send Image',
           ),
-          SizedBox(width: 4),
           Expanded(
             child: TextField(
               controller: _textController,
-              style: TextStyle(fontSize: 15, color: Colors.grey.shade900),
-              decoration: InputDecoration(
+              textInputAction: TextInputAction.send,
+              onSubmitted: (_) => _sendText(),
+              decoration: const InputDecoration(
                 hintText: 'Type a message...',
-                hintStyle: TextStyle(color: Colors.grey.shade500),
-                filled: true,
-                fillColor: Colors.grey.shade100,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide.none,
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(24),
-                  borderSide: BorderSide(color: Colors.teal.shade600, width: 2),
-                ),
+                isDense: true,
               ),
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Container(
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: Colors.teal.shade600,
+              color: colorScheme.primary,
               shape: BoxShape.circle,
             ),
             child: IconButton(
-              icon: Icon(Icons.send_rounded, color: Colors.white, size: 20),
+              icon: Icon(Icons.send_rounded, color: colorScheme.onPrimary, size: 20),
               onPressed: _sendText,
               tooltip: 'Send',
             ),

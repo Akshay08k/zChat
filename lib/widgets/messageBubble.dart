@@ -5,7 +5,7 @@ class MessageBubble extends StatelessWidget {
   final MessageModel message;
   final bool isMe;
   final String? peerPhoto;
-  final String? peerUid; // For read receipts
+  final String? peerUid;
 
   const MessageBubble({
     Key? key,
@@ -17,14 +17,15 @@ class MessageBubble extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final bgColor = isMe ? Colors.tealAccent : Colors.grey[300];
-    final textColor = isMe ? Colors.black : Colors.black87;
+    final colorScheme = Theme.of(context).colorScheme;
+    final bgColor = isMe ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest;
+    final textColor = isMe ? colorScheme.onPrimaryContainer : colorScheme.onSurface;
     final align = isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start;
     final radius = BorderRadius.only(
-      topLeft: Radius.circular(12),
-      topRight: Radius.circular(12),
-      bottomLeft: isMe ? Radius.circular(12) : Radius.circular(0),
-      bottomRight: isMe ? Radius.circular(0) : Radius.circular(12),
+      topLeft: const Radius.circular(16),
+      topRight: const Radius.circular(16),
+      bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
+      bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
     );
 
     bool isRead = false;
@@ -38,10 +39,9 @@ class MessageBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         children: [
-
           Flexible(
             child: Container(
-              padding: EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
               decoration: BoxDecoration(
                 color: bgColor,
                 borderRadius: radius,
@@ -51,7 +51,7 @@ class MessageBubble extends StatelessWidget {
                 children: [
                   if (message.mediaUrl != null && message.mediaUrl!.isNotEmpty)
                     ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
+                      borderRadius: BorderRadius.circular(10),
                       child: Image.network(
                         message.mediaUrl!,
                         width: 200,
@@ -59,16 +59,14 @@ class MessageBubble extends StatelessWidget {
                         fit: BoxFit.cover,
                         loadingBuilder: (ctx, child, progress) {
                           if (progress == null) return child;
-                          return Container(
+                          return SizedBox(
                             width: 200,
                             height: 200,
-                            color: Colors.grey[400],
                             child: Center(
                               child: CircularProgressIndicator(
                                 value: progress.expectedTotalBytes != null
                                     ? progress.cumulativeBytesLoaded / progress.expectedTotalBytes!
                                     : null,
-                                color: Colors.teal,
                               ),
                             ),
                           );
@@ -83,21 +81,21 @@ class MessageBubble extends StatelessWidget {
                         style: TextStyle(color: textColor, fontSize: 15),
                       ),
                     ),
-                  SizedBox(height: 2),
+                  const SizedBox(height: 2),
                   Row(
                     mainAxisSize: MainAxisSize.min,
                     mainAxisAlignment: MainAxisAlignment.end,
                     children: [
                       Text(
                         _formatTime(message.timestamp),
-                        style: TextStyle(fontSize: 10, color: Colors.grey[600]),
+                        style: TextStyle(fontSize: 10, color: colorScheme.onSurfaceVariant),
                       ),
                       if (isMe) ...[
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Icon(
                           isRead ? Icons.done_all : Icons.done,
                           size: 16,
-                          color: isRead ? Colors.blue : Colors.grey[600],
+                          color: isRead ? Colors.blue : colorScheme.onSurfaceVariant,
                         ),
                       ]
                     ],
@@ -121,20 +119,16 @@ class MessageBubble extends StatelessWidget {
     final difference = today.difference(msgDate).inDays;
 
     if (difference == 0) {
-      // Today
       final hours = dt.hour.toString().padLeft(2, '0');
       final mins = dt.minute.toString().padLeft(2, '0');
-      return "$hours:$mins";
+      return '$hours:$mins';
     } else if (difference == 1) {
-      // Yesterday
-      return "Yesterday";
+      return 'Yesterday';
     } else {
-      // Older messages
       final day = dt.day.toString().padLeft(2, '0');
       final month = dt.month.toString().padLeft(2, '0');
       final year = dt.year;
-      return "$day/$month/$year";
+      return '$day/$month/$year';
     }
   }
-
 }

@@ -8,13 +8,14 @@ Future<void> showStartChatDialog(BuildContext context) async {
   final controller = TextEditingController();
   await showDialog(
     context: context,
-    builder: (ctx) => AlertDialog(
+    builder: (ctx) {
+      final colorScheme = Theme.of(ctx).colorScheme;
+      return AlertDialog(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      backgroundColor: Colors.white,
       contentPadding: EdgeInsets.zero,
       content: Container(
         width: double.maxFinite,
-        padding: EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -24,53 +25,33 @@ Future<void> showStartChatDialog(BuildContext context) async {
               style: TextStyle(
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
-                color: Colors.grey.shade900,
               ),
             ),
-            SizedBox(height: 8),
+            const SizedBox(height: 8),
             Text(
               'Enter a username to start chatting',
               style: TextStyle(
                 fontSize: 14,
-                color: Colors.grey.shade600,
+                color: colorScheme.onSurfaceVariant,
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             TextField(
               controller: controller,
               autofocus: true,
-              style: TextStyle(fontSize: 15, color: Colors.grey.shade900),
+              style: const TextStyle(fontSize: 15),
               decoration: InputDecoration(
                 hintText: 'Enter username',
-                hintStyle: TextStyle(color: Colors.grey.shade400),
-                prefixIcon: Icon(Icons.alternate_email, color: Colors.grey.shade500, size: 22),
-                filled: true,
-                fillColor: Colors.grey.shade50,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                enabledBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.grey.shade300),
-                ),
-                focusedBorder: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide(color: Colors.teal.shade600, width: 2),
-                ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                prefixIcon: const Icon(Icons.alternate_email, size: 22),
               ),
             ),
-            SizedBox(height: 24),
+            const SizedBox(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.end,
               children: [
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
-                  style: TextButton.styleFrom(
-                    foregroundColor: Colors.grey.shade700,
-                    padding: EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  ),
+                  style: TextButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12)),
                   child: Text(
                     'Cancel',
                     style: TextStyle(
@@ -116,19 +97,11 @@ Future<void> showStartChatDialog(BuildContext context) async {
                       );
                     }
                   },
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.teal.shade600,
-                    foregroundColor: Colors.white,
-                    elevation: 0,
-                    padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+                  style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12)),
                   child: Text(
-                    'Start Chat',
-                    style: TextStyle(
-                      fontSize: 15,
+                  'Start Chat',
+                  style: TextStyle(
+                    fontSize: 15,
                       fontWeight: FontWeight.w600,
                       letterSpacing: 0.3,
                     ),
@@ -139,6 +112,7 @@ Future<void> showStartChatDialog(BuildContext context) async {
           ],
         ),
       ),
-    ),
+    );
+    },
   );
 }
