@@ -16,11 +16,12 @@ class ChatRoomScreen extends StatefulWidget {
   final String peerName;
   final String? peerPhoto;
 
-  ChatRoomScreen({
+  const ChatRoomScreen({
     required this.chatId,
     required this.peerId,
     required this.peerName,
     this.peerPhoto,
+    super.key,
   });
 
   @override
@@ -31,6 +32,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   final TextEditingController _textController = TextEditingController();
   final ChatService _chatService = ChatService();
   final MediaService _mediaService = MediaService();
+
   late DatabaseReference _messagesRef;
   late StreamSubscription<DatabaseEvent> _msgSub;
   List<MessageModel> _messages = [];
@@ -41,19 +43,23 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     super.initState();
     _messagesRef = _chatService.messagesRef(widget.chatId);
 
-    // Listen to messages
+    // Listen to messages in real-time
     _msgSub = _messagesRef.onValue.listen((event) async {
       final map = event.snapshot.value as Map<dynamic, dynamic>? ?? {};
       final list = <MessageModel>[];
-      map.forEach((k, v) {
+
+      map.forEach((key, value) {
         try {
-          list.add(MessageModel.fromJson(v));
+          list.add(MessageModel.fromJson(value));
         } catch (_) {}
       });
+
+      // Sort messages by timestamp
       list.sort((a, b) => a.timestamp.compareTo(b.timestamp));
+
       setState(() => _messages = list);
 
-      // Mark messages read
+      // Mark all incoming messages as read immediately
       await _markMessagesRead();
     });
   }
@@ -68,16 +74,18 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
   Future<void> _markMessagesRead() async {
     for (var msg in _messages) {
       if (msg.senderId != uid && (msg.isRead?[uid] ?? false) == false) {
-        await _chatService.messagesRef(widget.chatId)
-            .child(msg.id)
-            .child('isRead')
-            .child(uid)
-            .set(true);
+        await _messagesRef.child(msg.id).child('isRead').child(uid).set(true);
       }
     }
+
+    // Reset lastMessage unread count for this user
+    final lastMsgUnreadRef = FirebaseDatabase.instance
+        .ref()
+        .child('chats/${widget.chatId}/lastMessage/unread/$uid');
+    await lastMsgUnreadRef.set(0);
   }
 
-  // Send text message
+  // Send a text message
   void _sendText() async {
     final text = _textController.text.trim();
     if (text.isEmpty) return;
@@ -98,6 +106,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     _textController.clear();
   }
 
+  // Send an image message
   void _sendImage() async {
     final picker = ImagePicker();
     final picked = await picker.pickImage(source: ImageSource.gallery);
@@ -146,7 +155,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                   ? Icon(Icons.person, color: Colors.white, size: 18)
                   : null,
             ),
-            SizedBox(width: 12),
+            const SizedBox(width: 12),
             Text(
               widget.peerName,
               style: TextStyle(
@@ -192,6 +201,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
     );
   }
 
+  // Input bar with text field and send buttons
   Widget _buildInputBar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
@@ -209,7 +219,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
             iconSize: 26,
             tooltip: 'Send Image',
           ),
-          SizedBox(width: 4),
+          const SizedBox(width: 4),
           Expanded(
             child: TextField(
               controller: _textController,
@@ -219,7 +229,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
                 hintStyle: TextStyle(color: Colors.grey.shade500),
                 filled: true,
                 fillColor: Colors.grey.shade100,
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(24),
                   borderSide: BorderSide.none,
@@ -235,7 +245,7 @@ class _ChatRoomScreenState extends State<ChatRoomScreen> {
               ),
             ),
           ),
-          SizedBox(width: 8),
+          const SizedBox(width: 8),
           Container(
             width: 44,
             height: 44,

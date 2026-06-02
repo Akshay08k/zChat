@@ -5,18 +5,20 @@ import 'notificationService.dart';
 class ChatService {
   final DatabaseReference _db = FirebaseDatabase.instance.ref();
 
-  // Create or get chat ID for 1-1 (sorted user ids)
   String chatIdFor(String a, String b) {
     final list = [a, b]..sort();
     return list.join('_');
   }
 
   Future<String?> _uidForUsername(String username) async {
-    final snap = await _db.child('usernames/${username.trim().toLowerCase()}').get();
+    final snap = await _db
+        .child('usernames/${username.trim().toLowerCase()}')
+        .get();
     return snap.value as String?;
   }
 
-  Future<String> ensureDirectChatByUsername({required String myUid, required String targetUsername}) async {
+  Future<String> ensureDirectChatByUsername(
+      {required String myUid, required String targetUsername}) async {
     final otherUid = await _uidForUsername(targetUsername);
     if (otherUid == null) throw Exception('User "$targetUsername" not found');
     if (otherUid == myUid) throw Exception('Cannot chat with yourself');
@@ -30,9 +32,11 @@ class ChatService {
       await chatMetaRef.set({
         'type': 'direct',
         'members': {myUid: true, otherUid: true},
-        'createdAt': DateTime.now().millisecondsSinceEpoch,
+        'createdAt': DateTime
+            .now()
+            .millisecondsSinceEpoch,
       });
-      // Index chat for both users
+      // listening chat from both user
       await _db.child('userChats/$myUid/$chatId').set({'peerUid': otherUid});
       await _db.child('userChats/$otherUid/$chatId').set({'peerUid': myUid});
     }
@@ -47,30 +51,47 @@ class ChatService {
   Future<void> sendMessage({
     required String chatId,
     required MessageModel message,
-    bool sendNotification = true, //No Notification Spam
+    bool sendNotification = true,
   }) async {
     final ref = _db.child('chats/$chatId/messages/${message.id}');
 
+    // Get chat members
     final chatMetaSnap = await _db.child('chats/$chatId/meta/members').get();
     final membersMap = (chatMetaSnap.value as Map?)?.cast<String, bool>() ?? {};
 
-    final isReadMap = {for (var uid in membersMap.keys) uid: uid == message.senderId};
+    // isRead map for the message: sender sees it as read, others as false
+    final isReadMap = {
+      for (var uid in membersMap.keys) uid: uid == message.senderId
+    };
 
-    final msgData = {
+    await ref.set({
       ...message.toJson(),
       'isRead': isReadMap,
       'notificationSent': sendNotification,
-    };
+    });
 
-    await ref.set(msgData);
+    // Update lastMessage + unread counts
+    final lastMsgRef = _db.child('chats/$chatId/lastMessage');
+    final unreadMap = <String, int>{};
 
-    await _db.child('chats/$chatId/lastMessage').set({
+    for (var uid in membersMap.keys) {
+      if (uid == message.senderId) {
+        unreadMap[uid] = 0;
+      } else {
+        final prev = (await lastMsgRef.child('unread/$uid').get())
+            .value as int? ?? 0;
+        unreadMap[uid] = prev + 1;
+      }
+    }
+
+    await lastMsgRef.set({
       'text': message.text,
       'timestamp': message.timestamp,
       'senderId': message.senderId,
-      'isRead': isReadMap,
+      'unread': unreadMap,
     });
 
+    // Push notifications (sending push Notification from it)
     if (sendNotification) {
       final senderSnap = await _db.child('users/${message.senderId}').get();
       final senderName = (senderSnap.value as Map?)?['name'] ?? 'Someone';
@@ -94,12 +115,8 @@ class ChatService {
 
   DatabaseReference messagesRef(String chatId) => _db.child('chats/$chatId/messages');
 
-  Future<void> setUserOnline(String uid, bool online) async {
-    await _db.child('presence/$uid').set({
-      'isOnline': online,
-      'lastSeen': DateTime.now().millisecondsSinceEpoch,
-    });
-  }
+
+
   Future<String> createGroup({required String name, required String creatorUid, required List<String> memberUsernames}) async {
     final memberUids = <String>{creatorUid};
     for (final uname in memberUsernames) {

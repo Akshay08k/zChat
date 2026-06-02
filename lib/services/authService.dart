@@ -78,6 +78,7 @@ class AuthService extends ChangeNotifier {
   }
 
 
+  //getting the user profile
   Future<Map<String, dynamic>?> userProfile(String uid) async {
     final snap = await _db.child('users/$uid').get();
     return (snap.value as Map?)?.cast<String, dynamic>();
@@ -96,7 +97,7 @@ class AuthService extends ChangeNotifier {
 
     if (updates.isNotEmpty) {
       await _db.child('users/$uid').update(updates);
-      // update local model
+      // updating local model
       if (currentUserModel != null) {
         if (name != null) currentUserModel!.name = name;
         if (status != null) currentUserModel!.status = status;

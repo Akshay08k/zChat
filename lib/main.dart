@@ -23,17 +23,16 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
 
-  // Background message handler
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-  // Initialize local notifications
+  // for local notification handling
   const AndroidInitializationSettings initializationSettingsAndroid =
   AndroidInitializationSettings('@mipmap/ic_launcher');
   final InitializationSettings initializationSettings =
   InitializationSettings(android: initializationSettingsAndroid);
   await flutterLocalNotificationsPlugin.initialize(initializationSettings);
 
-  // Create notification channel (required for Android)
+  // Creating notification channel
   const AndroidNotificationChannel channel = AndroidNotificationChannel(
     'chat_channel',
     'Chat Messages',
@@ -117,7 +116,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     final user = auth.currentUser;
     if (user == null) return;
 
-    // Request notification permission
+    // getting the notification permission
     NotificationSettings settings = await FirebaseMessaging.instance.requestPermission(
       alert: true,
       badge: true,
@@ -130,18 +129,18 @@ class _AuthWrapperState extends State<AuthWrapper> {
       print('✅ Notifications permission granted');
     }
 
-    // Get initial token
+    // Get initial token for FCM
     String? token = await FirebaseMessaging.instance.getToken();
     if (token != null) {
       await auth.saveFCMToken(token);
     }
 
-    // Listen for token refresh
+    // if token change than listen for it
     FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
       await auth.saveFCMToken(newToken);
     });
 
-    // Foreground message listener
+
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       final notification = message.notification;
       if (notification != null) {
