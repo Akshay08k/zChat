@@ -3,12 +3,13 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:provider/provider.dart';
 import 'services/authService.dart';
 import 'services/chatService.dart';
+import 'services/themeService.dart';
 import 'screens/loginScreen.dart';
 import 'screens/chatListScreen.dart';
 import 'firebase_options.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-
+import 'utils/theme.dart';
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
 FlutterLocalNotificationsPlugin();
@@ -52,47 +53,21 @@ void main() async {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    final colorSeed = Colors.indigo;
-
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
         Provider(create: (_) => ChatService()),
+        ChangeNotifierProvider(create: (_) => ThemeService()),
       ],
-      child: MaterialApp(
-        debugShowCheckedModeBanner: false,
-        title: 'Flutter Chat',
-        theme: ThemeData(
-          brightness: Brightness.dark,
-          useMaterial3: true,
-          colorSchemeSeed: colorSeed,
-          scaffoldBackgroundColor: const Color(0xFF121212),
-          appBarTheme: const AppBarTheme(
-            centerTitle: true,
-            elevation: 0,
-            backgroundColor: Color(0xFF1F1F1F),
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 16),
-              backgroundColor: Colors.indigoAccent,
-            ),
-          ),
-          inputDecorationTheme: InputDecorationTheme(
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
-            filled: true,
-            fillColor: Colors.grey[900],
-            hintStyle: TextStyle(color: Colors.grey[400]),
-          ),
-          listTileTheme: ListTileThemeData(
-            iconColor: Colors.indigoAccent,
-            textColor: Colors.white,
-          ),
+      child: Consumer<ThemeService>(
+        builder: (context, themeService, _) => MaterialApp(
+          debugShowCheckedModeBanner: false,
+          title: 'zChat',
+          theme: AppTheme.lightTheme,
+          darkTheme: AppTheme.darkTheme,
+          themeMode: themeService.themeMode,
+          home: AuthWrapper(),
         ),
-        home: AuthWrapper(),
       ),
     );
   }

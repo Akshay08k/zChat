@@ -67,8 +67,10 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       resizeToAvoidBottomInset: true,
       body: SafeArea(
         child: Center(
@@ -81,15 +83,14 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 Icon(
                   Icons.chat_bubble_rounded,
                   size: 64,
-                  color: Colors.teal.shade600,
+                  color: colorScheme.primary,
                 ),
                 SizedBox(height: 16),
                 Text(
-                  'ChatApp',
-                  style: TextStyle(
+                  'zChat',
+                  style: theme.textTheme.headlineMedium?.copyWith(
                     fontSize: 32,
                     fontWeight: FontWeight.w600,
-                    color: Colors.grey.shade900,
                     letterSpacing: -0.5,
                   ),
                 ),
@@ -97,13 +98,13 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                 Container(
                   constraints: BoxConstraints(maxWidth: 440),
                   decoration: BoxDecoration(
-                    color: Colors.white,
+                    color: colorScheme.surfaceContainerLow,
                     borderRadius: BorderRadius.circular(16),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.grey.shade300,
+                        color: colorScheme.shadow.withOpacity(0.08),
                         blurRadius: 20,
-                        offset: Offset(0, 4),
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
@@ -111,15 +112,15 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
                     children: [
                       TabBar(
                         controller: _tabController,
-                        labelColor: Colors.teal.shade700,
-                        unselectedLabelColor: Colors.grey.shade600,
+                        labelColor: colorScheme.primary,
+                        unselectedLabelColor: colorScheme.onSurfaceVariant,
                         labelStyle: TextStyle(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                         ),
                         indicator: UnderlineTabIndicator(
                           borderSide: BorderSide(
-                            color: Colors.teal.shade600,
+                            color: colorScheme.primary,
                             width: 3,
                           ),
                           insets: EdgeInsets.symmetric(horizontal: 40),
@@ -221,8 +222,9 @@ class _LoginScreenState extends State<LoginScreen> with TickerProviderStateMixin
         onPressed: _loading ? null : onPressed,
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.teal.shade600,
-          foregroundColor: Colors.white,
-          disabledBackgroundColor: Colors.grey.shade400,
+          backgroundColor: Theme.of(context).colorScheme.primary,
+          foregroundColor: Theme.of(context).colorScheme.onPrimary,
+          disabledBackgroundColor: Theme.of(context).disabledColor,
           elevation: 0,
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(12),

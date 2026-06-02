@@ -6,6 +6,7 @@ import '../dialogs/startChatDialog.dart';
 import '../dialogs/createGroupDialog.dart';
 import '../services/authService.dart';
 import '../services/chatService.dart';
+import '../services/themeService.dart';
 import '../models/chatListItemModel.dart';
 import 'profileScreen.dart';
 import 'package:firebase_database/firebase_database.dart';
@@ -21,6 +22,7 @@ class _ChatListScreenState extends State<ChatListScreen> {
   final DatabaseReference _db = FirebaseDatabase.instance.ref();
   String? username;
   String? profilePhoto;
+  String _searchQuery = '';
 
   @override
   void initState() {
@@ -45,131 +47,163 @@ class _ChatListScreenState extends State<ChatListScreen> {
     });
   }
 
+  void _onMenuSelected(String value) {
+    final auth = Provider.of<AuthService>(context, listen: false);
+    final themeService = Provider.of<ThemeService>(context, listen: false);
+
+    switch (value) {
+      case 'theme_light':
+        themeService.setThemeMode(ThemeMode.light);
+        break;
+      case 'theme_dark':
+        themeService.setThemeMode(ThemeMode.dark);
+        break;
+      case 'theme_system':
+        themeService.setThemeMode(ThemeMode.system);
+        break;
+      case 'logout':
+        auth.signOut();
+        break;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
     final user = auth.currentUser!;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
-        elevation: 0,
-        backgroundColor: Colors.white,
         leading: GestureDetector(
           onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => ProfileScreen())),
           child: Padding(
             padding: const EdgeInsets.all(10.0),
             child: CircleAvatar(
-              backgroundColor: Colors.teal.shade600,
+              backgroundColor: colorScheme.primary,
               backgroundImage: (profilePhoto != null && profilePhoto!.isNotEmpty) ? NetworkImage(profilePhoto!) : null,
               child: (profilePhoto == null || profilePhoto!.isEmpty)
                   ? Text(
-                username != null ? username![0].toUpperCase() : '?',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w600,
-                  fontSize: 18,
-                ),
-              )
+                      username != null ? username![0].toUpperCase() : '?',
+                      style: TextStyle(
+                        color: colorScheme.onPrimary,
+                        fontWeight: FontWeight.w600,
+                        fontSize: 18,
+                      ),
+                    )
                   : null,
             ),
           ),
         ),
-        title: Text(
-          'Chats',
-          style: TextStyle(
-            color: Colors.grey.shade900,
-            fontWeight: FontWeight.w600,
-            fontSize: 20,
-          ),
+        title: const Text(
+          'zChat',
+          style: TextStyle(fontWeight: FontWeight.w700, fontSize: 22),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.person_add_alt_1_outlined, color: Colors.grey.shade700),
+            icon: const Icon(Icons.person_add_alt_1_outlined),
             onPressed: () => showStartChatDialog(context),
             tooltip: 'Start Chat',
           ),
           IconButton(
-            icon: Icon(Icons.group_add_outlined, color: Colors.grey.shade700),
+            icon: const Icon(Icons.group_add_outlined),
             onPressed: () => showCreateGroupDialog(context),
             tooltip: 'Create Group',
           ),
           PopupMenuButton<String>(
-            icon: Icon(Icons.more_vert, color: Colors.grey.shade700),
-            offset: Offset(0, 50),
+            offset: const Offset(0, 50),
             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            onSelected: (value) {
-              if (value == 'logout') auth.signOut();
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'logout',
-                child: Row(
-                  children: [
-                    Icon(Icons.logout, color: Colors.grey.shade700, size: 20),
-                    SizedBox(width: 12),
-                    Text('Logout'),
-                  ],
-                ),
-              ),
+            onSelected: _onMenuSelected,
+            itemBuilder: (context) => const [
+              PopupMenuItem(value: 'theme_light', child: Text('Theme: Light')),
+              PopupMenuItem(value: 'theme_dark', child: Text('Theme: Dark')),
+              PopupMenuItem(value: 'theme_system', child: Text('Theme: System')),
+              PopupMenuDivider(),
+              PopupMenuItem(value: 'logout', child: Text('Logout')),
             ],
           ),
         ],
       ),
-      body: StreamBuilder(
-        stream: _db.child('userChats/${user.uid}').onValue,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return Center(
-              child: CircularProgressIndicator(
-                color: Colors.teal.shade600,
-                strokeWidth: 2.5,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
+            child: TextField(
+              onChanged: (value) => setState(() => _searchQuery = value.trim().toLowerCase()),
+              decoration: InputDecoration(
+                hintText: 'Search chats or messages',
+                prefixIcon: const Icon(Icons.search),
+                fillColor: colorScheme.surfaceContainerHighest.withOpacity(0.6),
               ),
-            );
-          }
-          final event = snapshot.data as DatabaseEvent?;
-          final chatsIndex = event?.snapshot.value as Map<dynamic, dynamic>?;
-          if (chatsIndex == null || chatsIndex.isEmpty) {
-            return EmptyState(
-              onStartChat: () => showStartChatDialog(context),
-              onCreateGroup: () => showCreateGroupDialog(context),
-            );
-          }
+            ),
+          ),
+          Expanded(
+            child: StreamBuilder(
+              stream: _db.child('userChats/${user.uid}').onValue,
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator(color: colorScheme.primary, strokeWidth: 2.5));
+                }
+                final event = snapshot.data as DatabaseEvent?;
+                final chatsIndex = event?.snapshot.value as Map<dynamic, dynamic>?;
+                if (chatsIndex == null || chatsIndex.isEmpty) {
+                  return EmptyState(
+                    onStartChat: () => showStartChatDialog(context),
+                    onCreateGroup: () => showCreateGroupDialog(context),
+                  );
+                }
 
-          final chatIds = chatsIndex.keys.map((e) => e.toString()).toList();
+                final chatIds = chatsIndex.keys.map((e) => e.toString()).toList();
 
-          return FutureBuilder<List<ChatListItem>>(
-            future: _loadChatListItems(chatIds, user.uid),
-            builder: (context, snap) {
-              if (!snap.hasData) {
-                return Center(
-                  child: CircularProgressIndicator(
-                    color: Colors.teal.shade600,
-                    strokeWidth: 2.5,
-                  ),
+                return FutureBuilder<List<ChatListItem>>(
+                  future: _loadChatListItems(chatIds, user.uid),
+                  builder: (context, snap) {
+                    if (!snap.hasData) {
+                      return Center(
+                        child: CircularProgressIndicator(
+                          color: colorScheme.primary,
+                          strokeWidth: 2.5,
+                        ),
+                      );
+                    }
+                    final items = snap.data!;
+                    if (items.isEmpty) {
+                      return EmptyState(
+                        onStartChat: () => showStartChatDialog(context),
+                        onCreateGroup: () => showCreateGroupDialog(context),
+                      );
+                    }
+
+                    final filteredItems = _searchQuery.isEmpty
+                        ? items
+                        : items.where((item) {
+                            final title = item.title.toLowerCase();
+                            final subtitle = item.subtitle?.toLowerCase() ?? '';
+                            return title.contains(_searchQuery) || subtitle.contains(_searchQuery);
+                          }).toList();
+
+                    if (filteredItems.isEmpty) {
+                      return Center(
+                        child: Text(
+                          'No chats match "$_searchQuery"',
+                          style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                      );
+                    }
+
+                    return ListView.separated(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                      separatorBuilder: (_, __) => const SizedBox(height: 10),
+                      itemCount: filteredItems.length,
+                      itemBuilder: (context, index) => ChatTile(item: filteredItems[index]),
+                    );
+                  },
                 );
-              }
-              final items = snap.data!;
-              if (items.isEmpty) {
-                return EmptyState(
-                  onStartChat: () => showStartChatDialog(context),
-                  onCreateGroup: () => showCreateGroupDialog(context),
-                );
-              }
-              return ListView.separated(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                separatorBuilder: (_, __) => Divider(
-                  height: 1,
-                  thickness: 1,
-                  color: Colors.grey.shade200,
-                  indent: 72,
-                ),
-                itemCount: items.length,
-                itemBuilder: (context, index) => ChatTile(item: items[index]),
-              );
-            },
-          );
-        },
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -209,13 +243,12 @@ class _ChatListScreenState extends State<ChatListScreen> {
         final peerData = peerSnap.value as Map<dynamic, dynamic>?;
 
         final peerName = peerData?['name'] as String? ?? 'User';
-        final username = peerData?['username'] as String?;
         final profilePhoto = peerData?['photoUrl'] as String?;
 
         return ChatListItem(
           chatId: chatId,
           title: peerName,
-          subtitle: username != null ? '@$username' : lastText,
+          subtitle: lastText,
           isGroup: false,
           peerUid: peerUid,
           unreadCount: unreadCount,

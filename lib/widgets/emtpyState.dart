@@ -8,22 +8,27 @@ class EmptyState extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
+
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Text('No conversations yet', style: TextStyle(color: Colors.black54)),
+          Text(
+            'No conversations yet',
+            style: theme.textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+          ),
           const SizedBox(height: 12),
           ElevatedButton.icon(
             onPressed: onStartChat,
             icon: const Icon(Icons.person_add_alt_1),
             label: const Text('Start a chat'),
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.blueGrey[700]),
           ),
           TextButton.icon(
             onPressed: onCreateGroup,
-            icon: const Icon(Icons.group_add, color: Colors.blueGrey),
-            label: const Text('Create a group', style: TextStyle(color: Colors.blueGrey)),
+            icon: Icon(Icons.group_add, color: colorScheme.primary),
+            label: Text('Create a group', style: TextStyle(color: colorScheme.primary)),
           ),
         ],
       ),
